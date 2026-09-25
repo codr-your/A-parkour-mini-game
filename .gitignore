@@ -1,0 +1,17 @@
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# VSCode配置
+.vscode/
+*.code-workspace
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 环境（如果后面装虚拟环境）
+venv/
