@@ -1,41 +1,49 @@
 import math
 import pygame
 import sys
+# 这是一个用 Pygame 做的横版跳跃小游戏（类似超级马里奥），有选关界面、3 个关卡、金币、敌人、跳跃这些元素
+# ① 导入库 & 初始化（第1~31行）
+# ② 图片加载工具 & 常量（第34~49行）
+# ③ Player 类（第52~94行）—— 描述"玩家"这个角色
+# ④ Game 类（第96~513行）—— 整个游戏的大脑
+# ⑤ 关卡数据（第516~628行）—— 3个关卡的地图信息
+# ⑥ main 函数 & 程序入口（第631~652行）—— 程序启动点
 
 pygame.init()
 
-WIDTH, HEIGHT = 960, 540
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+WIDTH, HEIGHT = 960, 540   # 游戏窗口大小，宽960，高540，单位是像素
+screen = pygame.display.set_mode((WIDTH, HEIGHT))#创建窗口的函数,参数是一个元组，里面放宽和高，返回值screen是一个Surface对象，表示窗口的画布
 pygame.display.set_caption("Mini Mario Adventure")
-clock = pygame.time.Clock()
-FPS = 60
+clock = pygame.time.Clock()#创建一个时钟对象，用于控制游戏的帧率
+FPS = 60#游戏的帧率，单位是帧/秒,Python社区约定，全大写的变量名不应该被改变
 
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (210, 70, 70)
-YELLOW = (255, 220, 80)
-BLUE = (90, 150, 220)
-SKY_TOP = (140, 210, 255)
-DARK_BLUE = (28, 50, 110)
-GOLD = (255, 192, 72)
-PURPLE = (138, 110, 255)
+# 颜色常量
+WHITE = (255, 255, 255)  #y颜色用rgb表示，这是白色
+BLACK = (0, 0, 0)#黑色
+RED = (210, 70, 70)#偏暗的红色
+YELLOW = (255, 220, 80)#黄色
+BLUE = (90, 150, 220)#蓝色
+SKY_TOP = (140, 210, 255)#天空顶部颜色
+DARK_BLUE = (28, 50, 110)#深蓝色
+GOLD = (255, 192, 72)#金色
+PURPLE = (138, 110, 255)#紫色
 MINT = (111, 216, 156)
-BROWN = (98, 74, 52)
+BROWN = (98, 74, 52)#棕色
+#pygame.font.SysFont(...) 是"使用系统安装的字体"，参数依次是：字体名、字号、是否粗体。
+font = pygame.font.SysFont("arial", 28, bold=True)#默认字体，28号，加粗
+title_font = pygame.font.SysFont("arial", 48, bold=True)#标题字体，48号，加粗
+small_font = pygame.font.SysFont("arial", 20, bold=True)#小字体，20号，加粗
+card_title_font = pygame.font.SysFont("arial", 36, bold=True)#卡片标题字体，36号，加粗
+card_help_font = pygame.font.SysFont("arial", 18, bold=True)#卡片帮助字体，18号，加粗
 
-font = pygame.font.SysFont("arial", 28, bold=True)
-title_font = pygame.font.SysFont("arial", 48, bold=True)
-small_font = pygame.font.SysFont("arial", 20, bold=True)
-card_title_font = pygame.font.SysFont("arial", 36, bold=True)
-card_help_font = pygame.font.SysFont("arial", 18, bold=True)
+base_path = "assets"#一个普通字符串变量，表示游戏资源的目录路径
 
-base_path = "assets"
-
-
+#定义一个加载缩放函数，参数是图片路径和目标大小，返回值是一个Surface对象，表示缩放后的图片
 def load_scaled(path, size):
-    img = pygame.image.load(path).convert_alpha()
-    return pygame.transform.scale(img, size)
+    img = pygame.image.load(path).convert_alpha()#加载图片，返回值是一个Surface对象，表示图片，convert_alpha()方法将图片转换为透明模式
+    return pygame.transform.scale(img, size)#将图片缩放到目标大小，返回值是一个Surface对象，表示缩放后的图片
 
-
+#加载玩家的图片
 player_idle = load_scaled(f"{base_path}/characters/platformChar_idle.png", (42, 52))
 player_jump = load_scaled(f"{base_path}/characters/platformChar_jump.png", (42, 52))
 player_walk1 = load_scaled(f"{base_path}/characters/platformChar_walk1.png", (42, 52))
@@ -46,44 +54,44 @@ ground_tile = load_scaled(f"{base_path}/tiles/tile_ground.png", (64, 64))
 grass_tile = load_scaled(f"{base_path}/tiles/tile_grass.png", (64, 64))
 grass_mid = load_scaled(f"{base_path}/tiles/tile_grassMid.png", (64, 64))
 
-GROUND_Y = 470
+GROUND_Y = 470#地面的y坐标，单位是像素，从窗口的底部开始计数，地面的y坐标是470，玩家的y坐标是470-52=418
 
 
 class Player:
     def __init__(self):
-        self.x = 80
-        self.y = GROUND_Y - 52
-        self.w = 42
-        self.h = 52
-        self.vx = 0.0
-        self.vy = 0.0
-        self.speed = 4.0
-        self.jump = -13.5
-        self.gravity = 0.65
-        self.on_ground = True
-        self.facing = 1
-        self.anim_timer = 0.0
-        self.lives = 3
-        self.score = 0
-        self.state = "idle"
-        self.jump_count = 0
-        self.jump_lock = False
+        self.x = 80#玩家的x坐标，单位是像素，从窗口的左侧开始计数，玩家的x坐标是80
+        self.y = GROUND_Y - 52#玩家的y坐标，单位是像素，从窗口的底部开始计数，玩家的y坐标是418
+        self.w = 42#玩家的宽度，单位是像素，玩家的宽度是42
+        self.h = 52#玩家的高度，单位是像素，玩家的高度是52
+        self.vx = 0.0#玩家的x方向速度，单位是像素/帧
+        self.vy = 0.0#玩家的y方向速度，单位是像素/帧
+        self.speed = 4.0#玩家的移动速度，单位是像素/帧
+        self.jump = -13.5#玩家的跳跃力度，单位是像素/帧
+        self.gravity = 0.65#玩家受到的重力，单位是像素/帧²
+        self.on_ground = True#玩家是否在地面上
+        self.facing = 1#玩家 facing 的方向，1表示向右，-1表示向左
+        self.anim_timer = 0.0#动画计时器
+        self.lives = 3#玩家的生命值
+        self.score = 0#玩家的得分
+        self.state = "idle"#玩家的状态，idle表示空闲，jump表示跳跃，walk1表示走1，walk2表示走2
+        self.jump_count = 0#玩家跳跃跳跃的次数
+        self.jump_lock = False#玩家是否跳跃锁定，防止连续跳跃
 
-    def rect(self):
+    def rect(self):#返回玩家的矩形区域，单位是像素，返回值是一个pygame.Rect对象，表示玩家的矩形区域
         return pygame.Rect(self.x, self.y, self.w, self.h)
 
-    def reset_position(self):
-        self.x = 80
-        self.y = GROUND_Y - 52
-        self.vx = 0.0
-        self.vy = 0.0
-        self.on_ground = True
-        self.facing = 1
-        self.state = "idle"
-        self.jump_count = 0
-        self.jump_lock = False
+    def reset_position(self):#把玩家的位置和运动状态重置，但保留 lives 和 score。什么时候用？被敌人撞了减血，但还没 GAME OVER，把人传送回起点继续。
+        self.x = 80#玩家的x坐标，单位是像素，从窗口的左侧开始计数，玩家的x坐标是80
+        self.y = GROUND_Y - 52#玩家的y坐标，单位是像素，从窗口的底部开始计数，玩家的y坐标是418
+        self.vx = 0.0#玩家的x方向速度，单位是像素/帧
+        self.vy = 0.0#玩家的y方向速度，单位是像素/帧
+        self.on_ground = True#玩家是否在地面上
+        self.facing = 1#玩家 facing 的方向，1表示向右，-1表示向左
+        self.state = "idle"#玩家的状态，idle表示空闲，jump表示跳跃，walk1表示走1，walk2表示走2
+        self.jump_count = 0#玩家跳跃跳跃的次数
+        self.jump_lock = False#玩家是否跳跃锁定，防止连续跳跃
 
-    def reset_stats(self):
+    def reset_stats(self):#把玩家的统计信息重置，包括保留 lives 和 score。
         self.speed = 4.0
         self.jump = -13.5
         self.gravity = 0.65
@@ -91,14 +99,15 @@ class Player:
         self.lives = 3
         self.score = 0
         self.reset_position()
+#调用reset_position方法，把玩家的位置和运动状态重置，但保留 lives 和 score。
 
-
+# 游戏类，管理游戏的状态、关卡、玩家、敌人等元素
 class Game:
     def __init__(self):
         self.levels = prepare_level_data()
-        self.player = Player()
-        self.platforms = []
-        self.coins = []
+        self.player = Player()#创建一个玩家对象
+        self.platforms = []  #平台列表，用于存储游戏中的平台对象
+        self.coins = []  #金币列表，用于存储游戏中的金币对象
         self.enemies = []
         self.flag_x = 0
         self.world_width = self.levels[0]["world_width"]
@@ -112,29 +121,31 @@ class Game:
         self.transition_text = "STAGE 1"
         self.load_level(0)
 
+# 重置游戏状态，包括玩家位置、敌人位置、金币状态等
     def reset_game(self):
-        self.player.reset_stats()
-        for coin in self.coins:
+        self.player.reset_stats()      #玩家血量，分数，位置全部重置
+        for coin in self.coins:        #把每个金币的 collected 属性设置为 False，表示金币未被收集  
             coin["collected"] = False
         for i, enemy in enumerate(self.enemies):
-            enemy["x"] = enemy["min_x"] if i % 2 == 0 else enemy["max_x"]
-            enemy["dir"] = 1 if i % 2 == 0 else -1
+            enemy["x"] = enemy["min_x"] if i % 2 == 0 else enemy["max_x"]   #敌人位置也重置
+            enemy["dir"] = 1 if i % 2 == 0 else -1                          #敌人方向也重置
             if enemy.get("kind") == "flyer":
-                enemy["float_offset"] = 0.0
+                enemy["float_offset"] = 0.0                          #敌人飞行高度也重置
                 enemy["y"] = enemy.get("base_y", GROUND_Y - 30)
             elif enemy.get("kind") == "jumper":
-                enemy["jump_v"] = -1.2
+                enemy["jump_v"] = -1.2                          #敌人跳跃高度也重置
                 enemy["y"] = enemy.get("base_y", GROUND_Y - 30)
         self.camera_x = 0
         self.the_end = False
         self.transition_timer = 0
 
+# 加载指定关卡的数据，包括平台、金币、敌人等
     def load_level(self, index):
         self.current_level_index = index
-        level = self.levels[index]
-        self.platforms = [platform.copy() for platform in level["platforms"]]
-        self.coins = [coin.copy() for coin in level["coins"]]
-        self.enemies = [enemy.copy() for enemy in level["enemies"]]
+        level = self.levels[index]  #取出第index个关卡字典
+        self.platforms = [platform.copy() for platform in level["platforms"]]  #复制平台列表，避免修改原始数据
+        self.coins = [coin.copy() for coin in level["coins"]]  #复制金币列表，避免修改原始数据
+        self.enemies = [enemy.copy() for enemy in level["enemies"]]  #复制敌人列表，避免修改原始数据
         for enemy in self.enemies:
             enemy.setdefault("kind", "walker")
             enemy.setdefault("base_y", enemy["y"])
